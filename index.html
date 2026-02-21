@@ -25,7 +25,8 @@
         .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
 
         .header { text-align: center; padding: 30px 0; color: white; }
-        .header h1 { margin: 0; font-size: 2.2rem; }
+        .header h1 { margin: 0; font-size: 3rem; margin-bottom: 5px; }
+        .header .city-subtitle { font-size: 1.5rem; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: 2px; }
 
         .main-grid {
             display: grid;
@@ -51,7 +52,6 @@
 
         .big-stat { font-size: 2.2rem; font-weight: 800; color: var(--bg-dark); }
         
-        /* Loading States */
         .loading-pulse {
             background: #e2e8f0;
             height: 40px;
@@ -60,15 +60,9 @@
             animation: pulse 1.5s infinite;
         }
 
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
-        .aqi-scale {
-            display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 20px 0 10px; background: #e2e8f0;
-        }
+        .aqi-scale { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 20px 0 10px; background: #e2e8f0; }
         .scale-segment { height: 100%; flex: 1; }
         .aqi-labels { display: flex; justify-content: space-between; font-size: 10px; color: #94a3b8; font-weight: 600; }
 
@@ -76,7 +70,8 @@
             background: var(--card-bg);
             padding: 24px;
             border-radius: 16px;
-            min-height: 300px;
+            min-height: 350px;
+            position: relative;
         }
     </style>
 </head>
@@ -85,7 +80,7 @@
 <div class="container">
     <div class="header">
         <h1>ॐ सूर्याय नमः</h1>
-        <div id="location-name" style="color: var(--accent); font-weight: bold;">MUMBAI REAL-TIME MONITOR</div>
+        <div class="city-subtitle" id="cityName">MUMBAI</div>
     </div>
 
     <div class="main-grid">
@@ -102,109 +97,102 @@
                 <div class="scale-segment" style="background: #eab308;"></div>
                 <div class="scale-segment" style="background: #ef4444;"></div>
             </div>
-            <div class="aqi-labels"><span>Good</span><span>Moderate</span><span>Unhealthy</span></div>
+            <div class="aqi-labels"><span>Good (<12)</span><span>Moderate (12-35)</span><span>Poor (>35)</span></div>
         </div>
 
         <div class="card">
-            <div class="card-title">⏳ Event Countdown</div>
+            <div class="card-title">⏳ Countdown</div>
             <div class="big-stat" id="val-countdown">--:--:--</div>
-            <div id="countdown-label" style="font-weight: bold; color: var(--accent);">Syncing...</div>
+            <div id="countdown-label" style="font-weight: bold; color: var(--accent);">INITIALIZING...</div>
         </div>
     </div>
 
     <div class="chart-container">
-        <div class="card-title">📊 30-Day Solar Outlook (Sunrise/Sunset Trend)</div>
-        <canvas id="solarChart"></canvas>
-        <div id="chart-loader" style="text-align: center; padding: 50px; color: #64748b;">
-            <p>Gathering 30-day satellite data...</p>
+        <div class="card-title">📊 30-Day Solar Trend (Sunrise & Sunset)</div>
+        <div id="chart-loader" style="text-align: center; padding-top: 100px;">
+            <div class="loading-pulse" style="width: 80%; margin: 0 auto;"></div>
+            <p style="color: #64748b; margin-top: 15px;">Gathering 30-day outlook...</p>
         </div>
+        <canvas id="solarChart" style="display: none;"></canvas>
     </div>
 </div>
 
 <script>
-const CONFIG = { lat: 19.0760, lng: 72.8777 };
+const CONFIG = { city: "Mumbai", lat: 19.0760, lng: 72.8777 };
 
-// 1. Load Simple Data First (Today's Sun & AQI)
-async function loadInstantData() {
-    const today = new Date().toISOString().split('T')[0];
+async function loadDashboard() {
+    const todayStr = new Date().toISOString().split('T')[0];
     
-    // Fetch Today's Sun and Weather/AQI in parallel
-    const [sunRes, envRes, aqiRes] = await Promise.all([
-        fetch(`https://api.sunrise-sunset.org/json?lat=${CONFIG.lat}&lng=${CONFIG.lng}&date=${today}&formatted=0`).then(r => r.json()),
-        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${CONFIG.lat}&longitude=${CONFIG.lng}&current_weather=true`).then(r => r.json()),
-        fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${CONFIG.lat}&longitude=${CONFIG.lng}&current=pm2_5`).then(r => r.json())
-    ]);
+    // Tier 1: Instant Load
+    try {
+        const [sunRes, aqiRes] = await Promise.all([
+            fetch(`https://api.sunrise-sunset.org/json?lat=${CONFIG.lat}&lng=${CONFIG.lng}&date=${todayStr}&formatted=0`).then(r => r.json()),
+            fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${CONFIG.lat}&longitude=${CONFIG.lng}&current=pm2_5`).then(r => r.json())
+        ]);
 
-    const sun = sunRes.results;
-    const pm25 = aqiRes.current.pm2_5;
+        const sun = sunRes.results;
+        const pm25 = aqiRes.current.pm2_5;
 
-    // Update Sun Card
-    document.getElementById('sun-content').innerHTML = `
-        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-            <span>Sunrise:</span> <b>${new Date(sun.sunrise).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</b>
-        </div>
-        <div style="display:flex; justify-content:space-between;">
-            <span>Sunset:</span> <b>${new Date(sun.sunset).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</b>
-        </div>
-    `;
+        document.getElementById('sun-content').innerHTML = `
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <span>Sunrise:</span> <b>${new Date(sun.sunrise).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</b>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+                <span>Sunset:</span> <b>${new Date(sun.sunset).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</b>
+            </div>
+        `;
 
-    // Update AQI Card
-    let statusColor = pm25 <= 12 ? "#22c55e" : pm25 <= 35 ? "#eab308" : "#ef4444";
-    document.getElementById('aqi-content').innerHTML = `
-        <div class="big-stat">${pm25}</div>
-        <div style="color:${statusColor}; font-weight:800;">${pm25 <= 12 ? 'GOOD' : pm25 <= 35 ? 'MODERATE' : 'POOR'}</div>
-    `;
+        let color = pm25 <= 12 ? "#22c55e" : pm25 <= 35 ? "#eab308" : "#ef4444";
+        document.getElementById('aqi-content').innerHTML = `
+            <div class="big-stat">${pm25}</div>
+            <div style="color:${color}; font-weight:bold;">${pm25 <= 12 ? 'SAFE' : pm25 <= 35 ? 'MODERATE' : 'UNHEALTHY'}</div>
+        `;
 
-    startCountdown(sun.sunrise, sun.sunset);
-    
-    // Now load the heavy chart data
-    loadHeavyTrend();
+        startCountdown(sun.sunrise, sun.sunset);
+        
+        // Tier 2: Heavy Trend Data
+        loadTrendData();
+    } catch (e) { console.error("Load failed", e); }
 }
 
-// 2. Load Heavy Data in the Background
-async function loadHeavyTrend() {
+async function loadTrendData() {
     const dates = Array.from({length: 30}, (_, i) => {
         const d = new Date();
         d.setDate(d.getDate() + i);
         return d.toISOString().split('T')[0];
     });
 
-    try {
-        const sunResults = await Promise.all(dates.map(date => 
-            fetch(`https://api.sunrise-sunset.org/json?lat=${CONFIG.lat}&lng=${CONFIG.lng}&date=${date}&formatted=0`).then(r => r.json())
-        ));
+    const results = await Promise.all(dates.map(d => 
+        fetch(`https://api.sunrise-sunset.org/json?lat=${CONFIG.lat}&lng=${CONFIG.lng}&date=${d}&formatted=0`).then(r => r.json())
+    ));
 
-        const labels = dates.map(d => new Date(d).toLocaleDateString([], {month:'short', day:'numeric'}));
-        const sunrisePoints = sunResults.map(r => {
-            const d = new Date(r.results.sunrise);
-            return d.getHours() + d.getMinutes()/60;
-        });
-        const sunsetPoints = sunResults.map(r => {
-            const d = new Date(r.results.sunset);
-            return d.getHours() + d.getMinutes()/60;
-        });
+    const labels = dates.map(d => new Date(d).toLocaleDateString([], {month:'short', day:'numeric'}));
+    const sunriseData = results.map(r => {
+        const d = new Date(r.results.sunrise);
+        return d.getHours() + d.getMinutes()/60;
+    });
+    const sunsetData = results.map(r => {
+        const d = new Date(r.results.sunset);
+        return d.getHours() + d.getMinutes()/60;
+    });
 
-        document.getElementById('chart-loader').style.display = 'none';
-        renderChart(labels, sunrisePoints, sunsetPoints);
-    } catch (e) {
-        document.getElementById('chart-loader').innerText = "Failed to load trend data.";
-    }
-}
+    document.getElementById('chart-loader').style.display = 'none';
+    const ctx = document.getElementById('solarChart');
+    ctx.style.display = 'block';
 
-function renderChart(labels, sunrise, sunset) {
     const toTime = (dec) => {
         const h = Math.floor(dec);
         const m = Math.round((dec - h) * 60);
         return `${h}:${m.toString().padStart(2,'0')}`;
     };
 
-    new Chart(document.getElementById('solarChart'), {
+    new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
             datasets: [
-                { label: 'Sunset', data: sunset, borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.2)', fill: 1, tension: 0.3 },
-                { label: 'Sunrise', data: sunrise, borderColor: '#3b82f6', fill: false, tension: 0.3 }
+                { label: 'Sunset', data: sunsetData, borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.2)', fill: 1, tension: 0.3 },
+                { label: 'Sunrise', data: sunriseData, borderColor: '#3b82f6', fill: false, tension: 0.3 }
             ]
         },
         options: {
@@ -225,12 +213,12 @@ function startCountdown(sr, ss) {
         const h = Math.floor(diff/3600000).toString().padStart(2,'0');
         const m = Math.floor((diff%3600000)/60000).toString().padStart(2,'0');
         const s = Math.floor((diff%60000)/1000).toString().padStart(2,'0');
-        label.innerText = now < sunrise ? "UNTIL SUNRISE" : now < sunset ? "UNTIL SUNSET" : "UNTIL DAWN";
+        label.innerText = now < sunrise ? "NEXT: SUNRISE" : now < sunset ? "NEXT: SUNSET" : "NEXT: DAWN";
         timer.innerText = `${h}:${m}:${s}`;
     }, 1000);
 }
 
-loadInstantData();
+loadDashboard();
 </script>
 </body>
 </html>
