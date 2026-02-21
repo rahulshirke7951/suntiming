@@ -1,169 +1,87 @@
 <script>
-const LOC = { lat: 19.0760, lon: 72.8777 };
+document.addEventListener("DOMContentLoaded", () => {
 
-// Wait until page fully loads
-document.addEventListener("DOMContentLoaded", start);
+const LOC = { lat: 19.0760, lon: 72.8777 };
 
 async function start() {
     try {
-        const loading = document.getElementById('loading');
+        const loading = document.getElementById("loading");
 
-        // Fetch APIs safely
-        const [aqiRes, sunRes] = await Promise.all([
-            fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${LOC.lat}&longitude=${LOC.lon}&current=pm2_5`)
-            .then(r => r.json()),
+        const aqiURL = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${LOC.lat}&longitude=${LOC.lon}&current=pm2_5`;
+        const sunURL = `https://api.open-meteo.com/v1/forecast?latitude=${LOC.lat}&longitude=${LOC.lon}&daily=sunrise,sunset&timezone=auto&forecast_days=30`;
 
-            fetch(`https://api.open-meteo.com/v1/forecast?latitude=${LOC.lat}&longitude=${LOC.lon}&daily=sunrise,sunset&timezone=auto&forecast_days=30`)
-            .then(r => r.json())
-        ]);
+        const aqiRes = await fetch(aqiURL);
+        const sunRes = await fetch(sunURL);
 
-        // Validate API data
-        if (!aqiRes?.current || !sunRes?.daily) {
-            throw new Error("Invalid API response");
-        }
+        const aqiData = await aqiRes.json();
+        const sunData = await sunRes.json();
 
-        const pm25 = aqiRes.current.pm2_5 ?? "--";
-        const daily = sunRes.daily;
+        if (!aqiData.current || !sunData.daily) throw "API failed";
 
-        if (!daily.sunrise?.length || !daily.sunset?.length) {
-            throw new Error("Sun data missing");
-        }
-
-        // Format time helper
-        const formatTime = (iso) =>
-            new Date(iso).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit"
-            });
-
-        // Update sunrise/sunset
-        document.getElementById('sr').innerText = formatTime(daily.sunrise[0]);
-        document.getElementById('ss').innerText = formatTime(daily.sunset[0]);
+        // Sunrise Sunset
+        const formatTime = t => new Date(t).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+        document.getElementById("sr").innerText = formatTime(sunData.daily.sunrise[0]);
+        document.getElementById("ss").innerText = formatTime(sunData.daily.sunset[0]);
 
         // AQI
-        updateAQI(pm25);
+        const pm25 = aqiData.current.pm2_5 ?? "--";
+        document.getElementById("aqi").innerText = pm25;
 
-        // Countdown
-        runCountdown(
-            daily.sunrise[0],
-            daily.sunset[0],
-            daily.sunrise[1] || daily.sunrise[0]
-        );
+        const msg = document.getElementById("aqi-msg");
+        if (pm25 <= 12) msg.innerText="SAFE (GOOD)";
+        else if (pm25 <= 35) msg.innerText="MODERATE";
+        else msg.innerText="UNHEALTHY";
 
-        // Chart
-        renderChart(daily.sunrise, daily.sunset);
+        runCountdown(sunData.daily.sunrise[0], sunData.daily.sunset[0], sunData.daily.sunrise[1]);
 
-        loading.style.display = "none";
+        renderChart(sunData.daily.sunrise, sunData.daily.sunset);
 
-    } catch (e) {
-        console.error(e);
-        document.getElementById('loading').innerText =
-            "Connection Error — Check Internet / API";
-    }
-}
+        loading.style.display="none";
 
-function updateAQI(pm25) {
-    const aqi = document.getElementById('aqi');
-    const msg = document.getElementById('aqi-msg');
-
-    aqi.innerText = pm25;
-
-    if (pm25 === "--") {
-        msg.innerText = "DATA UNAVAILABLE";
-        msg.style.color = "#64748b";
-        return;
-    }
-
-    if (pm25 <= 12) {
-        msg.innerText = "SAFE (GOOD)";
-        msg.style.color = "#22c55e";
-    }
-    else if (pm25 <= 35) {
-        msg.innerText = "MODERATE";
-        msg.style.color = "#eab308";
-    }
-    else {
-        msg.innerText = "UNHEALTHY";
-        msg.style.color = "#ef4444";
+    } catch(e) {
+        console.log(e);
+        document.getElementById("loading").innerText="API / Network Error";
     }
 }
 
 function renderChart(srArr, ssArr) {
     const ctx = document.getElementById("solarChart");
 
-    const labels = srArr.map(d =>
-        new Date(d).toLocaleDateString([], { month: "short", day: "numeric" })
-    );
-
-    const toDec = (iso) => {
-        const d = new Date(iso);
-        return d.getHours() + d.getMinutes() / 60;
-    };
+    const labels = srArr.map(d => new Date(d).toLocaleDateString([], {month:"short", day:"numeric"}));
+    const toDec = iso => { const d=new Date(iso); return d.getHours()+d.getMinutes()/60; };
 
     new Chart(ctx, {
-        type: "line",
-        data: {
+        type:"line",
+        data:{
             labels,
-            datasets: [
-                {
-                    label: "Sunset",
-                    data: ssArr.map(toDec),
-                    borderColor: "#f59e0b",
-                    backgroundColor: "rgba(245,158,11,0.2)",
-                    fill: true,
-                    tension: 0.3
-                },
-                {
-                    label: "Sunrise",
-                    data: srArr.map(toDec),
-                    borderColor: "#3b82f6",
-                    fill: false,
-                    tension: 0.3
-                }
+            datasets:[
+                {label:"Sunset", data:ssArr.map(toDec), borderColor:"#f59e0b", fill:true},
+                {label:"Sunrise", data:srArr.map(toDec), borderColor:"#3b82f6"}
             ]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: {
-                    ticks: {
-                        callback: v =>
-                            Math.floor(v) + ":" +
-                            Math.round((v % 1) * 60).toString().padStart(2, "0")
-                    }
-                }
-            }
         }
     });
 }
 
 function runCountdown(sr, ss, nextSr) {
-    setInterval(() => {
-        const now = new Date();
-        const sunrise = new Date(sr);
-        const sunset = new Date(ss);
-        const nextSunrise = new Date(nextSr);
+    setInterval(()=>{
+        const now=new Date();
+        const sunrise=new Date(sr);
+        const sunset=new Date(ss);
 
-        let target;
+        let target = now<sunrise ? sunrise : now<sunset ? sunset : new Date(nextSr);
+        let diff=target-now;
 
-        if (now < sunrise) target = sunrise;
-        else if (now < sunset) target = sunset;
-        else target = nextSunrise;
+        if(diff<0) return;
 
-        const diff = target - now;
+        const h=Math.floor(diff/3600000).toString().padStart(2,"0");
+        const m=Math.floor(diff%3600000/60000).toString().padStart(2,"0");
+        const s=Math.floor(diff%60000/1000).toString().padStart(2,"0");
 
-        if (diff <= 0) return;
-
-        const h = Math.floor(diff / 3600000).toString().padStart(2, "0");
-        const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, "0");
-        const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, "0");
-
-        document.getElementById('cd-target').innerText =
-            now < sunrise ? "UNTIL SUNRISE" :
-            now < sunset ? "UNTIL SUNSET" :
-            "UNTIL DAWN";
-
-        document.getElementById('cd').innerText = `${h}:${m}:${s}`;
-    }, 1000);
+        document.getElementById("cd").innerText=`${h}:${m}:${s}`;
+    },1000);
 }
+
+start();
+
+});
 </script>
