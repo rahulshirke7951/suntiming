@@ -1,67 +1,118 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Sunrise Dashboard</title>
+<title>Sun Timing Dashboard</title>
 
 <style>
 body {
   margin: 0;
   font-family: Arial;
-  height: 100vh;
+  background: linear-gradient(135deg,#1e3c72,#2a5298);
+  color: white;
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg,#1e3c72,#2a5298);
-  color: white;
+}
+
+.container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px,1fr));
+  gap: 20px;
+  padding: 30px;
+  width: 90%;
+  max-width: 900px;
 }
 
 .card {
   background: rgba(255,255,255,0.1);
-  padding: 40px;
-  border-radius: 20px;
+  padding: 25px;
+  border-radius: 15px;
   text-align: center;
-  width: 320px;
+}
+
+h1 {
+  text-align: center;
+  width: 100%;
 }
 
 .time {
-  font-size: 28px;
-  margin: 20px 0;
+  font-size: 22px;
+  margin: 10px 0;
 }
 </style>
 </head>
 
 <body>
 
-<div class="card">
-  <h1>🌅 Mumbai</h1>
+<div>
+<h1>🌅 Mumbai Sun Timing</h1>
 
-  <div>
-    <div>Sunrise</div>
-    <div id="sunrise" class="time">Loading...</div>
-  </div>
-
-  <div>
-    <div>Sunset</div>
-    <div id="sunset" class="time">Loading...</div>
-  </div>
+<div class="container">
+  <div class="card" id="today"></div>
+  <div class="card" id="tomorrow"></div>
+  <div class="card" id="saturday"></div>
+  <div class="card" id="sunday"></div>
+</div>
 </div>
 
 <script>
-async function loadData() {
-  const res = await fetch(
-    "https://api.sunrise-sunset.org/json?lat=19.0760&lng=72.8777&formatted=0"
-  );
 
-  const data = await res.json();
+const lat = 19.0760;
+const lng = 72.8777;
 
-  document.getElementById("sunrise").innerText =
-    new Date(data.results.sunrise).toLocaleTimeString();
-
-  document.getElementById("sunset").innerText =
-    new Date(data.results.sunset).toLocaleTimeString();
+// format date YYYY-MM-DD
+function formatDate(d){
+  return d.toISOString().split("T")[0];
 }
 
-loadData();
+// get next weekend dates
+function getNextWeekend(){
+  let today = new Date();
+  let day = today.getDay();
+
+  let daysToSat = (6 - day + 7) % 7 || 7;
+  let saturday = new Date(today);
+  saturday.setDate(today.getDate() + daysToSat);
+
+  let sunday = new Date(saturday);
+  sunday.setDate(saturday.getDate() + 1);
+
+  return {saturday, sunday};
+}
+
+async function fetchSun(date, elementId, label){
+
+  const url =
+  `https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lng}&date=${date}&formatted=0`;
+
+  const res = await fetch(url);
+  const data = await res.json();
+
+  document.getElementById(elementId).innerHTML = `
+    <h2>${label}</h2>
+    <div class="time">Sunrise: ${new Date(data.results.sunrise).toLocaleTimeString()}</div>
+    <div class="time">Sunset: ${new Date(data.results.sunset).toLocaleTimeString()}</div>
+  `;
+}
+
+async function loadAll(){
+
+  let today = new Date();
+
+  let tomorrow = new Date();
+  tomorrow.setDate(today.getDate()+1);
+
+  let weekend = getNextWeekend();
+
+  fetchSun(formatDate(today), "today", "Today");
+  fetchSun(formatDate(tomorrow), "tomorrow", "Tomorrow");
+  fetchSun(formatDate(weekend.saturday), "saturday", "Saturday");
+  fetchSun(formatDate(weekend.sunday), "sunday", "Sunday");
+}
+
+loadAll();
+
 </script>
 
 </body>
