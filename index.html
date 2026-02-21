@@ -3,115 +3,203 @@
 <head>
 <title>Sun Timing Dashboard</title>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
 body {
-  margin: 0;
-  font-family: Arial;
-  background: linear-gradient(135deg,#1e3c72,#2a5298);
-  color: white;
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  margin:0;
+  font-family:Arial;
+  background:linear-gradient(135deg,#1e3c72,#2a5298);
+  color:white;
 }
 
-.container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px,1fr));
-  gap: 20px;
-  padding: 30px;
-  width: 90%;
-  max-width: 900px;
+h1 {text-align:center;margin-top:20px}
+
+.grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:20px;
+  padding:20px;
 }
 
 .card {
-  background: rgba(255,255,255,0.1);
-  padding: 25px;
-  border-radius: 15px;
-  text-align: center;
+  background:rgba(255,255,255,0.1);
+  padding:20px;
+  border-radius:15px;
+  text-align:center;
 }
 
-h1 {
-  text-align: center;
-  width: 100%;
-}
+.time {font-size:20px;margin:6px 0}
 
-.time {
-  font-size: 22px;
-  margin: 10px 0;
-}
+canvas{background:white;border-radius:12px;padding:10px}
 </style>
 </head>
 
 <body>
 
-<div>
-<h1>🌅 Mumbai Sun Timing</h1>
+<h1>☀️ Mumbai Sun Monitoring</h1>
+<p style="text-align:center" id="timestamp"></p>
 
-<div class="container">
-  <div class="card" id="today"></div>
-  <div class="card" id="tomorrow"></div>
-  <div class="card" id="saturday"></div>
-  <div class="card" id="sunday"></div>
+<div class="grid">
+
+<div class="card" id="today"></div>
+<div class="card" id="tomorrow"></div>
+<div class="card" id="countdown"></div>
+<div class="card" id="weather"></div>
+<div class="card" id="aqi"></div>
+
 </div>
+
+<div style="padding:20px">
+<h2 style="text-align:center">📊 Upcoming 30-Day Daylight Trend</h2>
+<canvas id="chart"></canvas>
 </div>
 
 <script>
 
-const lat = 19.0760;
-const lng = 72.8777;
+const lat=19.0760;
+const lng=72.8777;
 
-// format date YYYY-MM-DD
+// date stamp
+function updateTime(){
+document.getElementById("timestamp").innerText =
+"Updated: "+new Date().toLocaleString();
+}
+updateTime();
+setInterval(updateTime,60000);
+
+// format date
 function formatDate(d){
-  return d.toISOString().split("T")[0];
+return d.toISOString().split("T")[0];
 }
 
-// get next weekend dates
-function getNextWeekend(){
-  let today = new Date();
-  let day = today.getDay();
-
-  let daysToSat = (6 - day + 7) % 7 || 7;
-  let saturday = new Date(today);
-  saturday.setDate(today.getDate() + daysToSat);
-
-  let sunday = new Date(saturday);
-  sunday.setDate(saturday.getDate() + 1);
-
-  return {saturday, sunday};
+// daylight duration
+function getDuration(sunrise,sunset){
+let diff=(new Date(sunset)-new Date(sunrise))/1000/3600;
+return diff.toFixed(2)+" hrs";
 }
 
-async function fetchSun(date, elementId, label){
-
-  const url =
-  `https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lng}&date=${date}&formatted=0`;
-
-  const res = await fetch(url);
-  const data = await res.json();
-
-  document.getElementById(elementId).innerHTML = `
-    <h2>${label}</h2>
-    <div class="time">Sunrise: ${new Date(data.results.sunrise).toLocaleTimeString()}</div>
-    <div class="time">Sunset: ${new Date(data.results.sunset).toLocaleTimeString()}</div>
-  `;
+// fetch sun data
+async function fetchSun(date){
+const res=await fetch(
+`https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lng}&date=${date}&formatted=0`
+);
+return (await res.json()).results;
 }
 
-async function loadAll(){
+// today & tomorrow
+async function loadBasic(){
 
-  let today = new Date();
+let today=new Date();
+let tomorrow=new Date();
+tomorrow.setDate(today.getDate()+1);
 
-  let tomorrow = new Date();
-  tomorrow.setDate(today.getDate()+1);
+let t=await fetchSun(formatDate(today));
+let tm=await fetchSun(formatDate(tomorrow));
 
-  let weekend = getNextWeekend();
+document.getElementById("today").innerHTML=`
+<h3>Today</h3>
+<div class="time">Sunrise: ${new Date(t.sunrise).toLocaleTimeString()}</div>
+<div class="time">Sunset: ${new Date(t.sunset).toLocaleTimeString()}</div>
+<div>Daylight: ${getDuration(t.sunrise,t.sunset)}</div>
+`;
 
-  fetchSun(formatDate(today), "today", "Today");
-  fetchSun(formatDate(tomorrow), "tomorrow", "Tomorrow");
-  fetchSun(formatDate(weekend.saturday), "saturday", "Saturday");
-  fetchSun(formatDate(weekend.sunday), "sunday", "Sunday");
+document.getElementById("tomorrow").innerHTML=`
+<h3>Tomorrow</h3>
+<div class="time">Sunrise: ${new Date(tm.sunrise).toLocaleTimeString()}</div>
+<div class="time">Sunset: ${new Date(tm.sunset).toLocaleTimeString()}</div>
+<div>Daylight: ${getDuration(tm.sunrise,tm.sunset)}</div>
+`;
+
+startCountdown(t.sunrise,t.sunset);
 }
 
-loadAll();
+// countdown logic
+function startCountdown(sunrise,sunset){
+
+function update(){
+let now=new Date();
+let sr=new Date(sunrise);
+let ss=new Date(sunset);
+
+let target=(now<sr)?sr:(now<ss)?ss:new Date(sr.getTime()+86400000);
+let label=(now<sr)?"Next Sunrise":
+(now<ss)?"Next Sunset":"Next Sunrise (Tomorrow)";
+
+let diff=target-now;
+
+let hrs=Math.floor(diff/1000/3600);
+let min=Math.floor((diff/1000%3600)/60);
+let sec=Math.floor(diff/1000%60);
+
+document.getElementById("countdown").innerHTML=`
+<h3>⏳ ${label}</h3>
+<div class="time">${hrs}h ${min}m ${sec}s</div>
+`;
+}
+
+update();
+setInterval(update,1000);
+}
+
+// 30 day trend chart
+async function loadTrend(){
+
+let labels=[];
+let data=[];
+
+for(let i=0;i<30;i++){
+let d=new Date();
+d.setDate(d.getDate()+i);
+
+let r=await fetchSun(formatDate(d));
+let duration=(new Date(r.sunset)-new Date(r.sunrise))/1000/3600;
+
+labels.push(d.toLocaleDateString());
+data.push(duration.toFixed(2));
+}
+
+new Chart(document.getElementById("chart"),{
+type:"line",
+data:{
+labels:labels,
+datasets:[{label:"Daylight Hours",data:data}]
+}
+});
+}
+
+// weather (Open-Meteo free API)
+async function loadWeather(){
+const res=await fetch(
+"https://api.open-meteo.com/v1/forecast?latitude=19.0760&longitude=72.8777&current_weather=true"
+);
+const data=await res.json();
+
+document.getElementById("weather").innerHTML=`
+<h3>🌤 Weather</h3>
+<div class="time">${data.current_weather.temperature}°C</div>
+<div>Wind: ${data.current_weather.windspeed} km/h</div>
+`;
+}
+
+// AQI (Open-Meteo air quality)
+async function loadAQI(){
+const res=await fetch(
+"https://air-quality-api.open-meteo.com/v1/air-quality?latitude=19.0760&longitude=72.8777&current=pm10,pm2_5"
+);
+const data=await res.json();
+
+document.getElementById("aqi").innerHTML=`
+<h3>🌫 AQI</h3>
+<div>PM2.5: ${data.current.pm2_5}</div>
+<div>PM10: ${data.current.pm10}</div>
+`;
+}
+
+loadBasic();
+loadTrend();
+loadWeather();
+loadAQI();
 
 </script>
 
