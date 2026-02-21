@@ -1,245 +1,233 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Sun Timing Dashboard</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sun & Air Dashboard Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --glass: rgba(255, 255, 255, 0.2);
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --sun-primary: #ff8c00;
+        }
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #2c3e50, #fd8112, #ed4264);
+            background-attachment: fixed;
+            color: #333;
+            min-height: 100vh;
+        }
 
-<style>
-body{
-margin:0;
-font-family:Arial;
-background:linear-gradient(135deg,#ffb347,#ffcc33,#ff8c00);
-color:#333;
-}
+        .header {
+            text-align: center;
+            padding: 40px 20px;
+            color: white;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
 
-/* header */
-.header{
-text-align:center;
-padding:20px;
-color:white;
-}
+        .mantra { font-size: 36px; font-weight: 800; letter-spacing: 2px; }
+        .city { font-size: 24px; margin-top: 5px; opacity: 0.9; }
 
-.mantra{
-font-size:28px;
-font-weight:bold;
-}
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            padding: 0 30px 40px;
+        }
 
-.city{
-font-size:26px;
-margin-top:5px;
-}
+        .card {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 24px;
+            text-align: center;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+            transition: transform 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
 
-/* cards */
-.grid{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
-gap:20px;
-padding:20px;
-}
+        .card:hover { transform: translateY(-10px); }
 
-.card{
-background:white;
-padding:20px;
-border-radius:15px;
-text-align:center;
-box-shadow:0 5px 15px rgba(0,0,0,0.2);
-}
+        /* AQI Meter Styling */
+        .aqi-meter {
+            width: 100px;
+            height: 10px;
+            background: #eee;
+            border-radius: 5px;
+            margin: 15px auto;
+            position: relative;
+        }
 
-.time{
-font-size:20px;
-margin:6px 0;
-}
+        .aqi-indicator {
+            height: 100%;
+            border-radius: 5px;
+            transition: width 1s ease-in-out;
+        }
 
-canvas{
-background:white;
-border-radius:12px;
-padding:10px;
-}
-</style>
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .time { font-size: 26px; font-weight: bold; color: var(--sun-primary); margin: 10px 0; }
+        .label { font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: 1px; }
+
+        .chart-section {
+            background: white;
+            margin: 0 30px 40px;
+            padding: 30px;
+            border-radius: 24px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        }
+    </style>
 </head>
-
 <body>
 
 <div class="header">
-<div class="mantra">ॐ सूर्याय नमः</div>
-<div class="city" id="cityName"></div>
-<p id="timestamp"></p>
+    <div class="mantra">ॐ सूर्याय नमः</div>
+    <div class="city" id="cityName">Mumbai Solar Dashboard</div>
+    <p id="timestamp"></p>
 </div>
 
 <div class="grid">
-<div class="card" id="today"></div>
-<div class="card" id="tomorrow"></div>
-<div class="card" id="countdown"></div>
-<div class="card" id="weather"></div>
-<div class="card" id="aqi"></div>
+    <div class="card" id="today"><h3>Today</h3><p>Loading...</p></div>
+    <div class="card" id="countdown"><h3>Next Event</h3><p>Calculating...</p></div>
+    <div class="card" id="weather"><h3>Weather</h3><p>Fetching...</p></div>
+    <div class="card" id="aqi"><h3>Air Quality</h3><p>Analyzing...</p></div>
 </div>
 
-<div style="padding:20px">
-<h2 style="text-align:center">📊 Upcoming 30-Day Sun Trend</h2>
-<canvas id="chart"></canvas>
+<div class="chart-section">
+    <h2 style="text-align:center; margin-bottom: 20px;">📊 30-Day Solar Outlook</h2>
+    <canvas id="chart" height="100"></canvas>
 </div>
 
 <script>
+const CITY = "Mumbai";
+const lat = 19.0760;
+const lng = 72.8777;
 
-/* ===== CHANGE CITY HERE ANYTIME ===== */
-const CITY="Mumbai";
-const lat=19.0760;
-const lng=72.8777;
+// --- UTILITIES ---
+const formatLocalTime = (isoStr) => new Date(isoStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-document.getElementById("cityName").innerText=CITY+" Sun Monitoring";
-
-/* timestamp */
-function updateTime(){
-document.getElementById("timestamp").innerText=
-"Updated: "+new Date().toLocaleString();
-}
-updateTime();
-setInterval(updateTime,60000);
-
-/* helpers */
-function formatDate(d){
-return d.toISOString().split("T")[0];
+function getAQIStatus(pm25) {
+    if (pm25 <= 12) return { label: "EXCELLENT", color: "#4CAF50", width: "20%" };
+    if (pm25 <= 35) return { label: "GOOD", color: "#8BC34A", width: "40%" };
+    if (pm25 <= 55) return { label: "MODERATE", color: "#FFC107", width: "60%" };
+    if (pm25 <= 150) return { label: "UNHEALTHY", color: "#FF9800", width: "80%" };
+    return { label: "HAZARDOUS", color: "#F44336", width: "100%" };
 }
 
-function getDuration(sr,ss){
-return ((new Date(ss)-new Date(sr))/1000/3600).toFixed(2);
+// --- DATA FETCHING ---
+async function fetchSun(date) {
+    const res = await fetch(`https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lng}&date=${date}&formatted=0`);
+    const data = await res.json();
+    return data.results;
 }
 
-/* fetch sun data */
-async function fetchSun(date){
-const res=await fetch(
-`https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lng}&date=${date}&formatted=0`
-);
-return (await res.json()).results;
+// Optimized Trend Fetching
+async function loadTrend() {
+    const dates = Array.from({length: 15}, (_, i) => {
+        let d = new Date();
+        d.setDate(d.getDate() + i);
+        return d.toISOString().split('T')[0];
+    });
+
+    // Run all requests simultaneously
+    const results = await Promise.all(dates.map(date => fetchSun(date)));
+    
+    const labels = dates.map(d => new Date(d).toLocaleDateString([], {month:'short', day:'numeric'}));
+    const daylightData = results.map(r => (r.day_length / 3600).toFixed(2));
+
+    new Chart(document.getElementById("chart"), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Daylight (Hours)',
+                data: daylightData,
+                borderColor: '#ff8c00',
+                backgroundColor: 'rgba(255, 140, 0, 0.1)',
+                fill: true,
+                tension: 0.4,
+                pointRadius: 4
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } }
+    });
 }
 
-/* today + tomorrow */
-async function loadBasic(){
+async function loadMainData() {
+    const today = new Date().toISOString().split('T')[0];
+    const sun = await fetchSun(today);
+    
+    // Today Card
+    document.getElementById("today").innerHTML = `
+        <div class="label">Today's Cycle</div>
+        <div class="time">🌅 ${formatLocalTime(sun.sunrise)}</div>
+        <div class="time">🌇 ${formatLocalTime(sun.sunset)}</div>
+        <div style="font-weight:bold; color:#666">${(sun.day_length/3600).toFixed(2)} hrs of light</div>
+    `;
 
-let today=new Date();
-let tomorrow=new Date();
-tomorrow.setDate(today.getDate()+1);
+    // Countdown Logic
+    setInterval(() => {
+        const now = new Date();
+        const sunrise = new Date(sun.sunrise);
+        const sunset = new Date(sun.sunset);
+        let target = now < sunrise ? sunrise : now < sunset ? sunset : new Date(sunrise.getTime() + 86400000);
+        let label = now < sunrise ? "Sunrise" : now < sunset ? "Sunset" : "Tomorrow's Sunrise";
+        
+        let diff = target - now;
+        let h = Math.floor(diff/3600000);
+        let m = Math.floor((diff%3600000)/60000);
+        let s = Math.floor((diff%60000)/1000);
 
-let t=await fetchSun(formatDate(today));
-let tm=await fetchSun(formatDate(tomorrow));
-
-document.getElementById("today").innerHTML=`
-<h3>Today</h3>
-<div class="time">Sunrise: ${new Date(t.sunrise).toLocaleTimeString()}</div>
-<div class="time">Sunset: ${new Date(t.sunset).toLocaleTimeString()}</div>
-<div>Daylight: ${getDuration(t.sunrise,t.sunset)} hrs</div>
-`;
-
-document.getElementById("tomorrow").innerHTML=`
-<h3>Tomorrow</h3>
-<div class="time">Sunrise: ${new Date(tm.sunrise).toLocaleTimeString()}</div>
-<div class="time">Sunset: ${new Date(tm.sunset).toLocaleTimeString()}</div>
-<div>Daylight: ${getDuration(tm.sunrise,tm.sunset)} hrs</div>
-`;
-
-startCountdown(t.sunrise,t.sunset);
+        document.getElementById("countdown").innerHTML = `
+            <div class="label">Time Until ${label}</div>
+            <div class="time">⏳ ${h}h ${m}m ${s}s</div>
+            <div class="label">Solar Noon: ${formatLocalTime(sun.solar_noon)}</div>
+        `;
+    }, 1000);
 }
 
-/* countdown */
-function startCountdown(sr,ss){
+async function loadEnvironment() {
+    // Weather
+    const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true`);
+    const wData = await wRes.json();
+    document.getElementById("weather").innerHTML = `
+        <div class="label">Current Conditions</div>
+        <div class="time">🌡️ ${wData.current_weather.temperature}°C</div>
+        <div style="font-weight:bold">${wData.current_weather.windspeed} km/h wind</div>
+    `;
 
-function update(){
-let now=new Date();
-let sunrise=new Date(sr);
-let sunset=new Date(ss);
+    // AQI with Meter
+    const aRes = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&current=pm2_5`);
+    const aData = await aRes.json();
+    const pm25 = aData.current.pm2_5;
+    const status = getAQIStatus(pm25);
 
-let target=(now<sunrise)?sunrise:(now<sunset)?sunset:new Date(sunrise.getTime()+86400000);
-let label=(now<sunrise)?"Next Sunrise":(now<sunset)?"Next Sunset":"Next Sunrise (Tomorrow)";
-
-let diff=target-now;
-
-let h=Math.floor(diff/1000/3600);
-let m=Math.floor(diff/1000%3600/60);
-let s=Math.floor(diff/1000%60);
-
-document.getElementById("countdown").innerHTML=
-`<h3>⏳ ${label}</h3><div class="time">${h}h ${m}m ${s}s</div>`;
+    document.getElementById("aqi").innerHTML = `
+        <div class="label">Air Quality (PM2.5)</div>
+        <div class="time">🌫️ ${pm25}</div>
+        <div class="aqi-meter">
+            <div class="aqi-indicator" style="width:${status.width}; background:${status.color}"></div>
+        </div>
+        <div class="status-badge" style="background:${status.color}33; color:${status.color}">
+            ${status.label}
+        </div>
+    `;
 }
 
-update();
-setInterval(update,1000);
-}
-
-/* 30 day trend (sunrise + daylight) */
-async function loadTrend(){
-
-let labels=[];
-let sunriseData=[];
-let daylightData=[];
-
-for(let i=0;i<30;i++){
-
-let d=new Date();
-d.setDate(d.getDate()+i);
-
-let r=await fetchSun(formatDate(d));
-
-labels.push(d.toLocaleDateString());
-
-let sr=new Date(r.sunrise);
-sunriseData.push(sr.getHours()+sr.getMinutes()/60);
-
-daylightData.push(getDuration(r.sunrise,r.sunset));
-}
-
-new Chart(document.getElementById("chart"),{
-type:"line",
-data:{
-labels:labels,
-datasets:[
-{
-label:"Sunrise Time (hour)",
-data:sunriseData
-},
-{
-label:"Daylight Hours",
-data:daylightData
-}
-]
-}
-});
-}
-
-/* weather */
-async function loadWeather(){
-const res=await fetch(
-"https://api.open-meteo.com/v1/forecast?latitude=19.0760&longitude=72.8777&current_weather=true"
-);
-const data=await res.json();
-
-document.getElementById("weather").innerHTML=`
-<h3>🌤 Weather</h3>
-<div class="time">${data.current_weather.temperature}°C</div>
-<div>Wind: ${data.current_weather.windspeed} km/h</div>
-`;
-}
-
-/* AQI */
-async function loadAQI(){
-const res=await fetch(
-"https://air-quality-api.open-meteo.com/v1/air-quality?latitude=19.0760&longitude=72.8777&current=pm10,pm2_5"
-);
-const data=await res.json();
-
-document.getElementById("aqi").innerHTML=`
-<h3>🌫 AQI</h3>
-<div>PM2.5: ${data.current.pm2_5}</div>
-<div>PM10: ${data.current.pm10}</div>
-`;
-}
-
-loadBasic();
+// Initialize
+loadMainData();
 loadTrend();
-loadWeather();
-loadAQI();
-
+loadEnvironment();
 </script>
-
 </body>
 </html>
