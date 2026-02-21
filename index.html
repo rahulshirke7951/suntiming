@@ -15,18 +15,18 @@
 
         body {
             margin: 0;
-            font-family: 'Inter', system-ui, sans-serif;
+            font-family: 'Segoe UI', system-ui, sans-serif;
             background-color: var(--bg-dark);
             color: var(--text-main);
             min-height: 100vh;
-            padding-bottom: 50px;
         }
 
         .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
 
-        .header { text-align: center; padding: 30px 0; color: white; }
-        .header h1 { margin: 0; font-size: 3rem; margin-bottom: 5px; }
-        .header .city-subtitle { font-size: 1.5rem; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: 2px; }
+        /* HEADER REFINEMENT */
+        .header { text-align: center; padding: 40px 0; color: white; }
+        .header h1 { margin: 0; font-size: 2.8rem; font-weight: 800; letter-spacing: 2px; }
+        .header .city-name { font-size: 1.6rem; color: var(--accent); font-weight: 600; text-transform: uppercase; margin-top: 5px; }
 
         .main-grid {
             display: grid;
@@ -37,126 +37,131 @@
 
         .card {
             background: var(--card-bg);
-            border-radius: 16px;
+            border-radius: 20px;
             padding: 24px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
         }
 
         .card-title {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             text-transform: uppercase;
             font-weight: 700;
-            color: #64748b;
-            margin-bottom: 15px;
+            color: #94a3b8;
+            margin-bottom: 12px;
+            letter-spacing: 1px;
         }
 
-        .big-stat { font-size: 2.2rem; font-weight: 800; color: var(--bg-dark); }
+        .big-stat { font-size: 2.5rem; font-weight: 900; color: var(--bg-dark); line-height: 1.1; }
         
-        .loading-pulse {
-            background: #e2e8f0;
-            height: 40px;
-            width: 100%;
-            border-radius: 8px;
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-
-        .aqi-scale { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 20px 0 10px; background: #e2e8f0; }
+        .aqi-scale { display: flex; height: 10px; border-radius: 5px; overflow: hidden; margin: 15px 0 10px; background: #eee; }
         .scale-segment { height: 100%; flex: 1; }
-        .aqi-labels { display: flex; justify-content: space-between; font-size: 10px; color: #94a3b8; font-weight: 600; }
+        .aqi-labels { display: flex; justify-content: space-between; font-size: 11px; color: #64748b; font-weight: bold; }
 
         .chart-container {
             background: var(--card-bg);
             padding: 24px;
-            border-radius: 16px;
-            min-height: 350px;
-            position: relative;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+            margin-top: 10px;
         }
+
+        /* Fallback for Loading */
+        #loader-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; align-items: center; justify-content: center; z-index: 100; color: white; transition: opacity 0.5s; }
     </style>
 </head>
 <body>
 
+<div id="loader-overlay">⚡ System Initializing...</div>
+
 <div class="container">
     <div class="header">
         <h1>ॐ सूर्याय नमः</h1>
-        <div class="city-subtitle" id="cityName">MUMBAI</div>
+        <div class="city-name">MUMBAI</div>
     </div>
 
     <div class="main-grid">
-        <div class="card" id="card-sun">
+        <div class="card">
             <div class="card-title">☀️ Solar Cycle (Today)</div>
-            <div id="sun-content"><div class="loading-pulse"></div></div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <span>Sunrise</span> <b id="val-sr">--:--</b>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+                <span>Sunset</span> <b id="val-ss">--:--</b>
+            </div>
+            <div id="val-daylight" style="margin-top:15px; font-weight:bold; color:var(--accent);">-- hrs</div>
         </div>
 
-        <div class="card" id="card-aqi">
+        <div class="card">
             <div class="card-title">🌫️ Air Quality (PM2.5)</div>
-            <div id="aqi-content"><div class="loading-pulse"></div></div>
+            <div class="big-stat" id="val-aqi">0</div>
+            <div id="aqi-status" style="font-weight:bold; margin-top:5px;">Loading...</div>
             <div class="aqi-scale">
-                <div class="scale-segment" style="background: #22c55e;"></div>
-                <div class="scale-segment" style="background: #eab308;"></div>
-                <div class="scale-segment" style="background: #ef4444;"></div>
+                <div class="scale-segment" style="background:#22c55e"></div>
+                <div class="scale-segment" style="background:#eab308"></div>
+                <div class="scale-segment" style="background:#ef4444"></div>
             </div>
-            <div class="aqi-labels"><span>Good (<12)</span><span>Moderate (12-35)</span><span>Poor (>35)</span></div>
+            <div class="aqi-labels"><span>Safe (<12)</span><span>Moderate</span><span>Poor (>35)</span></div>
         </div>
 
         <div class="card">
             <div class="card-title">⏳ Countdown</div>
-            <div class="big-stat" id="val-countdown">--:--:--</div>
-            <div id="countdown-label" style="font-weight: bold; color: var(--accent);">INITIALIZING...</div>
+            <div class="big-stat" id="val-cd">--:--:--</div>
+            <div id="cd-label" style="font-weight:bold; color:var(--accent); text-transform:uppercase;">...</div>
         </div>
     </div>
 
     <div class="chart-container">
-        <div class="card-title">📊 30-Day Solar Trend (Sunrise & Sunset)</div>
-        <div id="chart-loader" style="text-align: center; padding-top: 100px;">
-            <div class="loading-pulse" style="width: 80%; margin: 0 auto;"></div>
-            <p style="color: #64748b; margin-top: 15px;">Gathering 30-day outlook...</p>
-        </div>
-        <canvas id="solarChart" style="display: none;"></canvas>
+        <div class="card-title">📊 30-Day Solar Outlook (Sunrise to Sunset Range)</div>
+        <canvas id="solarChart" height="120"></canvas>
     </div>
 </div>
 
 <script>
-const CONFIG = { city: "Mumbai", lat: 19.0760, lng: 72.8777 };
+const CONFIG = { lat: 19.0760, lng: 72.8777, days: 30 };
 
-async function loadDashboard() {
-    const todayStr = new Date().toISOString().split('T')[0];
-    
-    // Tier 1: Instant Load
+async function init() {
     try {
+        const todayStr = new Date().toISOString().split('T')[0];
+        
+        // Fetch Essential Data
         const [sunRes, aqiRes] = await Promise.all([
             fetch(`https://api.sunrise-sunset.org/json?lat=${CONFIG.lat}&lng=${CONFIG.lng}&date=${todayStr}&formatted=0`).then(r => r.json()),
             fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${CONFIG.lat}&longitude=${CONFIG.lng}&current=pm2_5`).then(r => r.json())
         ]);
 
-        const sun = sunRes.results;
+        if (sunRes.status !== "OK") throw new Error("API Limit reached");
+
+        const sunToday = sunRes.results;
         const pm25 = aqiRes.current.pm2_5;
 
-        document.getElementById('sun-content').innerHTML = `
-            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                <span>Sunrise:</span> <b>${new Date(sun.sunrise).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</b>
-            </div>
-            <div style="display:flex; justify-content:space-between;">
-                <span>Sunset:</span> <b>${new Date(sun.sunset).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</b>
-            </div>
-        `;
-
-        let color = pm25 <= 12 ? "#22c55e" : pm25 <= 35 ? "#eab308" : "#ef4444";
-        document.getElementById('aqi-content').innerHTML = `
-            <div class="big-stat">${pm25}</div>
-            <div style="color:${color}; font-weight:bold;">${pm25 <= 12 ? 'SAFE' : pm25 <= 35 ? 'MODERATE' : 'UNHEALTHY'}</div>
-        `;
-
-        startCountdown(sun.sunrise, sun.sunset);
+        // Populate Cards
+        document.getElementById('val-sr').innerText = new Date(sunToday.sunrise).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        document.getElementById('val-ss').innerText = new Date(sunToday.sunset).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        document.getElementById('val-daylight').innerText = `${(sunToday.day_length/3600).toFixed(2)} Hrs Daylight`;
         
-        // Tier 2: Heavy Trend Data
-        loadTrendData();
-    } catch (e) { console.error("Load failed", e); }
+        document.getElementById('val-aqi').innerText = pm25;
+        const aStatus = document.getElementById('aqi-status');
+        if(pm25 <= 12) { aStatus.innerText = "EXCELLENT"; aStatus.style.color="#22c55e"; }
+        else if(pm25 <= 35) { aStatus.innerText = "MODERATE"; aStatus.style.color="#eab308"; }
+        else { aStatus.innerText = "UNHEALTHY"; aStatus.style.color="#ef4444"; }
+
+        startCountdown(sunToday.sunrise, sunToday.sunset);
+        
+        // Hide Loader
+        document.getElementById('loader-overlay').style.opacity = '0';
+        setTimeout(() => document.getElementById('loader-overlay').remove(), 500);
+
+        // Load Chart Data
+        loadTrend();
+
+    } catch (err) {
+        document.getElementById('loader-overlay').innerText = "System Error: Check Internet Connection";
+        console.error(err);
+    }
 }
 
-async function loadTrendData() {
-    const dates = Array.from({length: 30}, (_, i) => {
+async function loadTrend() {
+    const dates = Array.from({length: CONFIG.days}, (_, i) => {
         const d = new Date();
         d.setDate(d.getDate() + i);
         return d.toISOString().split('T')[0];
@@ -167,18 +172,14 @@ async function loadTrendData() {
     ));
 
     const labels = dates.map(d => new Date(d).toLocaleDateString([], {month:'short', day:'numeric'}));
-    const sunriseData = results.map(r => {
+    const srData = results.map(r => {
         const d = new Date(r.results.sunrise);
         return d.getHours() + d.getMinutes()/60;
     });
-    const sunsetData = results.map(r => {
+    const ssData = results.map(r => {
         const d = new Date(r.results.sunset);
         return d.getHours() + d.getMinutes()/60;
     });
-
-    document.getElementById('chart-loader').style.display = 'none';
-    const ctx = document.getElementById('solarChart');
-    ctx.style.display = 'block';
 
     const toTime = (dec) => {
         const h = Math.floor(dec);
@@ -186,13 +187,13 @@ async function loadTrendData() {
         return `${h}:${m.toString().padStart(2,'0')}`;
     };
 
-    new Chart(ctx, {
+    new Chart(document.getElementById('solarChart'), {
         type: 'line',
         data: {
             labels: labels,
             datasets: [
-                { label: 'Sunset', data: sunsetData, borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.2)', fill: 1, tension: 0.3 },
-                { label: 'Sunrise', data: sunriseData, borderColor: '#3b82f6', fill: false, tension: 0.3 }
+                { label: 'Sunset', data: ssData, borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.3)', fill: 1, tension: 0.3 },
+                { label: 'Sunrise', data: srData, borderColor: '#3b82f6', fill: false, tension: 0.3 }
             ]
         },
         options: {
@@ -203,8 +204,6 @@ async function loadTrendData() {
 }
 
 function startCountdown(sr, ss) {
-    const timer = document.getElementById('val-countdown');
-    const label = document.getElementById('countdown-label');
     setInterval(() => {
         const now = new Date();
         const sunrise = new Date(sr), sunset = new Date(ss);
@@ -213,12 +212,12 @@ function startCountdown(sr, ss) {
         const h = Math.floor(diff/3600000).toString().padStart(2,'0');
         const m = Math.floor((diff%3600000)/60000).toString().padStart(2,'0');
         const s = Math.floor((diff%60000)/1000).toString().padStart(2,'0');
-        label.innerText = now < sunrise ? "NEXT: SUNRISE" : now < sunset ? "NEXT: SUNSET" : "NEXT: DAWN";
-        timer.innerText = `${h}:${m}:${s}`;
+        document.getElementById('cd-label').innerText = now < sunrise ? "TO SUNRISE" : now < sunset ? "TO SUNSET" : "TO DAWN";
+        document.getElementById('val-cd').innerText = `${h}:${m}:${s}`;
     }, 1000);
 }
 
-loadDashboard();
+init();
 </script>
 </body>
 </html>
