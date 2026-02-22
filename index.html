@@ -70,7 +70,7 @@ border-radius:24px;
 padding:30px;
 text-align:center;
 box-shadow:0 20px 40px rgba(0,0,0,0.3);
-transition:all .3s ease;
+transition:.3s;
 border:1px solid #e2e8f0;
 }
 
@@ -100,7 +100,6 @@ font-weight:800;
 letter-spacing:1.5px;
 }
 
-/* temperature colors */
 .temp-cold{color:#3b82f6;}
 .temp-warm{color:#f59e0b;}
 .temp-hot{color:#dc2626;}
@@ -120,9 +119,9 @@ font-weight:700;
 border-left:5px solid var(--accent);
 }
 
-.time-item .date{font-size:.85rem;color:#64748b;margin-bottom:8px;font-weight:600;}
-.time-item .time{font-size:1.8rem;color:var(--bg);margin-bottom:5px;}
-.time-item .duration{font-size:1rem;color:var(--accent);font-weight:700;}
+.time-item .date{font-size:.85rem;color:#64748b;margin-bottom:8px;}
+.time-item .time{font-size:1.8rem;color:var(--bg);}
+.time-item .duration{font-size:1rem;color:var(--accent);}
 
 .aqi-status{
 font-weight:bold;
@@ -152,32 +151,20 @@ padding:25px 30px;
 background:linear-gradient(135deg,#f8fafc,#e2e8f0);
 font-size:1.3rem;
 font-weight:700;
-color:#1e293b;
-border-bottom:1px solid #e2e8f0;
 }
 
-table{width:100%;border-collapse:collapse;font-size:.95rem;}
+table{width:100%;border-collapse:collapse;}
 
 th{
 background:var(--accent);
 color:white;
-padding:18px 15px;
-text-align:left;
-font-weight:700;
-text-transform:uppercase;
-letter-spacing:.5px;
-font-size:.85rem;
+padding:18px;
 position:sticky;
 top:0;
 }
 
 td{padding:15px;border-bottom:1px solid #f1f5f9;}
 tr:nth-child(even){background:#f9fafb;}
-tr:hover{background:#f8fafc;}
-
-.date-col{font-weight:600;min-width:120px;}
-.time-col{min-width:100px;}
-.duration-col{min-width:100px;color:var(--accent);font-weight:600;}
 
 #loader{
 position:fixed;
@@ -189,57 +176,33 @@ flex-direction:column;
 align-items:center;
 justify-content:center;
 z-index:10000;
-font-size:1.3rem;
 }
 
 .spin{animation:spin 4s linear infinite;}
 @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
 
-.btn{
-background:linear-gradient(45deg,var(--accent),var(--accent-dark));
-color:white;border:none;padding:16px 32px;border-radius:12px;
-cursor:pointer;font-weight:700;margin-top:25px;font-size:1.1rem;
-transition:.3s;
-}
-.btn:hover{transform:scale(1.05);}
-
-/* digital timer */
-#cd{
-font-family:monospace;
-background:#020617;
-color:#fbbf24;
-padding:10px 20px;
-border-radius:10px;
-display:inline-block;
-letter-spacing:3px;
-}
-
-@media(max-width:768px){
-.grid{grid-template-columns:1fr;}
-.times-grid{grid-template-columns:1fr;}
-.stat{font-size:2.5rem!important;}
-table{font-size:.85rem;}
-th,td{padding:12px 8px;}
-}
+#error-msg{margin-top:15px;color:#fca5a5;}
 </style>
 </head>
 
 <body>
 
 <div id="loader">
-<div id="loader-text" class="spin">🌅 Loading Solar & Air Data...</div>
-<button id="force-btn" class="btn" style="display:none;" onclick="useOfflineData()">Use Mumbai Data</button>
+<div id="loader-text" class="spin">🌅 Loading Live Solar Data...</div>
+<div id="error-msg"></div>
 </div>
 
 <div class="container" style="display:none;" id="main-content">
 
+
 <div class="header">
 <div class="mantra">ॐ सूर्य देवाय नमः</div>
-<h1>🌅 Solar Command Center</h1>
 <div class="city">Mumbai, Maharashtra | <span id="current-date"></span></div>
 </div>
 
+
 <div class="grid">
+
 <div class="card">
 <div class="label">🌡️ Current Temperature</div>
 <div class="stat" id="temp">--°C</div>
@@ -263,18 +226,18 @@ th,td{padding:12px 8px;}
 <div class="stat stat-large" id="daylight">--h --m</div>
 <div class="label" id="today-label"></div>
 </div>
+
 </div>
 
 <div class="times-grid">
-<div class="card time-item" style="grid-column: span 2;">
+<div class="card time-item" style="grid-column:span 2;">
 <div class="label" style="text-align:center;margin-bottom:20px;">Key Solar Times</div>
 <div class="times-grid" id="times-list"></div>
 </div>
 </div>
 
 <div class="table-container">
-<div class="table-title">📊 30-Day Solar Data Points (Sunrise → Sunset → Duration)</div>
-<div style="overflow-x:auto;">
+<div class="table-title">📊 16-Day Solar Forecast (Sunrise → Sunset → Duration)</div>
 <table id="solar-table">
 <thead>
 <tr>
@@ -287,148 +250,245 @@ th,td{padding:12px 8px;}
 <tbody></tbody>
 </table>
 </div>
-</div>
 
 </div>
 
 <script>
 const LOC={lat:19.0760,lon:72.8777};
-let currentData={};
 let todaySunrise,todaySunset;
 
 async function init(){
 
 document.getElementById('current-date').textContent=
-new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+new Date().toLocaleDateString('en-GB',{
+day:'2-digit',
+month:'short',
+year:'numeric'
+})
 
 document.getElementById('today-label').textContent=
-"Today • "+new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+
+"Today • "+new Date().toLocaleDateString('en-GB',{
+day:'2-digit',
+month:'short',
+year:'numeric'
+})
 
 try{
-document.getElementById('loader-text').innerText='🌤️ Fetching Weather Data...';
 
-const promises=[fetchSunData(),fetchWeatherData(),fetchAQI()];
-const [sun,weather,aqi]=await Promise.allSettled(promises);
+const [sun,weather,aqi]=await Promise.all([
+fetchSunData(),
+fetchWeatherData(),
+fetchAQI()
+]);
 
-if(sun.status==='fulfilled'){
-currentData.sun=sun.value;
-updateSunTimes(sun.value);
-updateSolarTable(sun.value);
-}
+updateSunTimes(sun);
+updateSolarTable(sun);
+updateWeather(weather);
+updateAQI(aqi);
 
-if(weather.status==='fulfilled'){
-currentData.weather=weather.value;
-updateWeather(weather.value);
-}
-
-if(aqi.status==='fulfilled'){
-currentData.aqi=aqi.value;
-updateAQI(aqi.value);
-}
-
-renderAll();
 document.getElementById('loader').style.display='none';
 document.getElementById('main-content').style.display='block';
 
+startCountdown();
+
 }catch(e){
-document.getElementById('loader-text').innerText="🌐 API Access Limited";
-document.getElementById('force-btn').style.display='block';
+document.getElementById("loader-text").innerText="⚠️ Unable to fetch live data";
+document.getElementById("error-msg").innerText="Check internet or API availability";
 }
 }
 
 async function fetchSunData(){
-try{
-const res=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${LOC.lat}&longitude=${LOC.lon}&daily=sunrise,sunset&timezone=Asia%2FKolkata&forecast_days=30`);
-if(!res.ok)throw new Error();
-const data=await res.json();
-return data.daily;
-}catch(e){return generateMumbaiData();}
+const res=await fetch(
+`https://api.open-meteo.com/v1/forecast?latitude=${LOC.lat}&longitude=${LOC.lon}&daily=sunrise,sunset&timezone=Asia%2FKolkata&forecast_days=16`
+);
+if(!res.ok)throw new Error("Sun API failed");
+return (await res.json()).daily;
 }
 
 async function fetchWeatherData(){
-try{
 const res=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${LOC.lat}&longitude=${LOC.lon}&current=temperature_2m&timezone=Asia%2FKolkata`);
-if(!res.ok)throw new Error();
+if(!res.ok)throw new Error("Weather API failed");
 return await res.json();
-}catch(e){return{current:{temperature_2m:29}};}
 }
 
 async function fetchAQI(){
-try{
 const res=await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${LOC.lat}&longitude=${LOC.lon}&current=pm2_5&timezone=Asia%2FKolkata`);
-if(!res.ok)throw new Error();
+if(!res.ok)throw new Error("AQI API failed");
 return await res.json();
-}catch(e){return{current:{pm2_5:24}};}
 }
 
-function generateMumbaiData(){
-return{
-sunrise:["2026-02-22T07:05:00"],
-sunset:["2026-02-22T18:42:00"]
-};
-}
 
 function updateSunTimes(sunData){
-todaySunrise=new Date(sunData.sunrise[0]);
-todaySunset=new Date(sunData.sunset[0]);
-updateTodayDuration();
+
+// today sunrise/sunset for countdown + duration
+todaySunrise = new Date(sunData.sunrise[0]);
+todaySunset = new Date(sunData.sunset[0]);
+
+const timesList = document.getElementById('times-list');
+timesList.innerHTML = '';
+
+
+// offsets → Today, Tomorrow, Next Saturday, Next Sunday
+const today = new Date().getDay(); // 0=Sun, 6=Sat
+
+// next Saturday
+let saturdayOffset = (6 - today + 7) % 7;
+if(saturdayOffset === 0) saturdayOffset = 7;
+
+// next Sunday
+let sundayOffset = (0 - today + 7) % 7;
+if(sundayOffset === 0) sundayOffset = 7;
+
+// create offsets
+const offsets = [0, 1, saturdayOffset, sundayOffset];
+
+// remove duplicates if any
+const uniqueOffsets = [...new Set(offsets)];
+
+uniqueOffsets.forEach(offset => {
+
+
+
+    if(sunData.sunrise[offset] && sunData.sunset[offset]){
+
+        const sr = new Date(sunData.sunrise[offset]);
+        const ss = new Date(sunData.sunset[offset]);
+
+        // format day + date
+        const dayDate = sr.toLocaleDateString('en-GB',{
+            weekday:'long',
+            day:'2-digit',
+            month:'short',
+            year:'numeric'
+        });
+
+        const div = document.createElement('div');
+        div.className = 'time-item';
+
+        div.innerHTML = `
+        <div class="time">
+            ${sr.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+            → 
+            ${ss.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+        </div>
+        <div class="date">${dayDate}</div>
+        <div class="duration">${getDuration(sr, ss)}</div>
+        `;
+
+        timesList.appendChild(div);
+    }
+
+});
+
+// update today's daylight duration card
+document.getElementById('daylight').textContent =
+getDuration(todaySunrise, todaySunset);
+
 }
 
-function updateSolarTable(){}
+
+function updateSolarTable(sunData){
+const tbody=document.querySelector('#solar-table tbody');
+tbody.innerHTML='';
+for(let i=0;i<sunData.sunrise.length;i++){
+const sr=new Date(sunData.sunrise[i]);
+const ss=new Date(sunData.sunset[i]);
+const row=document.createElement('tr');
+row.innerHTML=`
+<td>${
+sr.toLocaleDateString('en-GB',{
+day:'2-digit',
+month:'short',
+year:'numeric'
+})
+
+}</td>
+<td>${sr.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</td>
+<td>${ss.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</td>
+<td>${getDuration(sr,ss)}</td>`;
+tbody.appendChild(row);
+}
+}
 
 function getDuration(start,end){
 const diff=end-start;
-const hours=Math.floor(diff/(1000*60*60));
-const minutes=Math.floor((diff%(1000*60*60))/(1000*60));
-return `${hours}h ${minutes.toString().padStart(2,'0')}m`;
+const h=Math.floor(diff/3600000);
+const m=Math.floor((diff%3600000)/60000);
+return `${h}h ${m.toString().padStart(2,'0')}m`;
 }
 
-function updateTodayDuration(){
-if(todaySunrise&&todaySunset){
-document.getElementById('daylight').textContent=getDuration(todaySunrise,todaySunset);
-}
-}
 
-function updateWeather(weather){
-const temp=Math.round(weather.current.temperature_2m||29);
+function updateWeather(w){
+const temp=Math.round(w.current.temperature_2m);
+
 const el=document.getElementById('temp');
 el.textContent=temp+'°C';
 el.className='stat '+(temp<25?'temp-cold':temp<30?'temp-warm':'temp-hot');
 
-document.getElementById('temp-label').textContent=
-temp>32?'VERY HOT ☀️':temp>28?'HOT ☀️':temp>24?'WARM 🌤️':'COMFORTABLE 🌥️';
+// update label (removes loading)
+document.getElementById('temp-label').textContent =
+temp>32?'VERY HOT ☀️':
+temp>28?'HOT ☀️':
+temp>24?'WARM 🌤️':'COMFORTABLE 🌥️';
 }
 
-function updateAQI(aqi){
-const pm25=Math.round((aqi.current.pm2_5||24)*10)/10;
-document.getElementById('aqi').textContent=pm25;
+
+
+function updateAQI(a){
+const pm=Math.round(a.current.pm2_5);
+document.getElementById('aqi').textContent=pm;
+
 const msg=document.getElementById('aqi-msg');
 
-if(pm25<=12){msg.textContent='● SAFE';msg.className='aqi-status status-safe';}
-else if(pm25<=35){msg.textContent='● MODERATE';msg.className='aqi-status status-moderate';}
-else{msg.textContent='● UNHEALTHY';msg.className='aqi-status status-unhealthy';}
+if(pm<=12){
+msg.textContent='● SAFE';
+msg.className='aqi-status status-safe';
+}
+else if(pm<=35){
+msg.textContent='● MODERATE';
+msg.className='aqi-status status-moderate';
+}
+else{
+msg.textContent='● UNHEALTHY';
+msg.className='aqi-status status-unhealthy';
+}
 }
 
-function renderAll(){if(todaySunrise&&todaySunset)startCountdown();}
 
 function startCountdown(){
 setInterval(()=>{
 const now=new Date();
 let target,label;
 
-if(now<todaySunrise){target=todaySunrise;label='Sunrise 🌅';}
-else if(now<todaySunset){target=todaySunset;label='Sunset 🌇';}
-else{target=new Date(todaySunrise);target.setDate(target.getDate()+1);label="Tomorrow's Sunrise 🌅";}
+if(now<todaySunrise){
+target=todaySunrise;
+label="Sunrise 🌅";
+}
+else if(now<todaySunset){
+target=todaySunset;
+label="Sunset 🌇";
+}
+else{
+target=new Date(todaySunrise);
+target.setDate(target.getDate()+1);
+label="Tomorrow Sunrise 🌅";
+}
 
-let diff=target-now;if(diff<0)diff=0;
+let diff=target-now;
+if(diff<0)diff=0;
+
 const h=Math.floor(diff/3600000).toString().padStart(2,"0");
 const m=Math.floor((diff%3600000)/60000).toString().padStart(2,"0");
 const s=Math.floor((diff%60000)/1000).toString().padStart(2,"0");
 
 document.getElementById('cd').textContent=`${h}:${m}:${s}`;
 document.getElementById('cd-label').textContent=label;
+
 },1000);
 }
+
 
 init();
 </script>
