@@ -6,12 +6,489 @@
     <title>Solar & AQI Command Center - Mumbai</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --bg: #0f172a; --accent: #f59e0b; --card: #ffffff; --text: #1e293b; }
-        body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .header { text-align: center; color: white; padding: 30px 0; }
-        .header h1 { margin: 0; font-size: 2.5rem; letter-spacing: 2px; }
-        .header .city { color: var(--accent); font-weight: bold; font-size: 1.4rem; margin-top: 5px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 25px; }
-        .card { background: var(--card); border-radius: 20px; padding: 25px; text-align: center; box-shadow: 0 15px 35px rgba(0,0,0,0.4); }
-        .stat { font-size: 2.2rem
+        :root { 
+            --bg: #0f172a; 
+            --accent: #f59e0b; 
+            --card: #ffffff; 
+            --text: #1e293b;
+            --green: #16a34a;
+            --orange: #d97706;
+            --red: #dc2626;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Inter', system-ui, sans-serif; 
+            background: linear-gradient(135deg, var(--bg), #1e293b); 
+            color: var(--text);
+            min-height: 100vh;
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px; 
+        }
+        .header { 
+            text-align: center; 
+            color: white; 
+            padding: 40px 0; 
+        }
+        .header h1 { 
+            margin: 0; 
+            font-size: 2.8rem; 
+            letter-spacing: 3px;
+            background: linear-gradient(45deg, white, var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header .city { 
+            color: var(--accent); 
+            font-weight: 900; 
+            font-size: 1.6rem; 
+            margin-top: 10px; 
+        }
+        .grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); 
+            gap: 25px; 
+            margin-bottom: 30px; 
+        }
+        .card { 
+            background: var(--card); 
+            border-radius: 24px; 
+            padding: 30px; 
+            text-align: center; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.4);
+        }
+        .stat { 
+            font-size: 2.8rem; 
+            font-weight: 900; 
+            margin: 15px 0; 
+            color: var(--bg); 
+        }
+        .label { 
+            color: #64748b; 
+            text-transform: uppercase; 
+            font-size: 0.85rem; 
+            font-weight: 800; 
+            letter-spacing: 1.5px; 
+        }
+        .times-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .time-item {
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+            padding: 15px;
+            border-radius: 16px;
+            font-weight: 700;
+        }
+        .time-item .time { font-size: 1.6rem; color: var(--bg); }
+        .time-item .day { font-size: 0.8rem; color: #64748b; margin-top: 4px; }
+        .aqi-status {
+            font-weight: bold; 
+            font-size: 1rem; 
+            margin-top: 8px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            display: inline-block;
+        }
+        .status-safe { background: rgba(22,163,74,0.1); color: var(--green); }
+        .status-moderate { background: rgba(217,119,6,0.1); color: var(--orange); }
+        .status-unhealthy { background: rgba(220,38,38,0.1); color: var(--red); }
+        .chart-box { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 24px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+        }
+        .chart-title {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #1e293b;
+            font-size: 1.2rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+        #loader { 
+            position: fixed; 
+            inset: 0; 
+            background: var(--bg); 
+            color: white; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 10000;
+            font-size: 1.2rem;
+        }
+        .btn { 
+            background: linear-gradient(45deg, var(--accent), #d97706); 
+            color: white; 
+            border: none; 
+            padding: 14px 28px; 
+            border-radius: 12px; 
+            cursor: pointer; 
+            font-weight: 700; 
+            margin-top: 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(245,158,11,0.4);
+        }
+        .btn:hover { transform: scale(1.05); box-shadow: 0 12px 25px rgba(245,158,11,0.6); }
+        @media (max-width: 768px) {
+            .charts-row { grid-template-columns: 1fr; }
+            .header h1 { font-size: 2.2rem; }
+            .grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+        }
+    </style>
+</head>
+<body>
+
+<div id="loader">
+    <div id="loader-text">🌅 Loading Solar & Air Data...</div>
+    <button id="force-btn" class="btn" style="display:none;" onclick="useOfflineData()">Use Mumbai Estimates</button>
+</div>
+
+<div class="container" style="display:none;" id="main-content">
+    <div class="header">
+        <h1>🌅 Solar Command Center</h1>
+        <div class="city">Mumbai, Maharashtra</div>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <div class="label">Today Weather</div>
+            <div class="stat" id="temp">--°C</div>
+            <div class="label" id="temp-label">Loading...</div>
+        </div>
+        <div class="card">
+            <div class="label">Air Quality (PM2.5)</div>
+            <div class="stat" id="aqi">--</div>
+            <div id="aqi-msg" class="aqi-status">Loading...</div>
+        </div>
+        <div class="card">
+            <div class="label">Next Event</div>
+            <div class="stat" id="cd" style="color: var(--accent);">00:00:00</div>
+            <div class="label" id="cd-label">Loading...</div>
+        </div>
+        <div class="card">
+            <div class="label">Sun Duration</div>
+            <div class="stat" id="daylight">--h</div>
+            <div class="label">Today</div>
+        </div>
+    </div>
+
+    <div class="times-grid" style="max-width: 800px; margin: 0 auto 30px;">
+        <div class="card" style="grid-column: span 2;">
+            <div class="label">Sunrise & Sunset Schedule</div>
+            <div class="times-grid" id="times-list" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <div class="chart-box">
+        <div class="chart-title">📊 Sunrise Trend (30 Days)</div>
+        <canvas id="sunriseChart" height="120"></canvas>
+    </div>
+
+    <div class="chart-box">
+        <div class="chart-title">📊 Sunset Trend (30 Days)</div>
+        <canvas id="sunsetChart" height="120"></canvas>
+    </div>
+</div>
+
+<script>
+const LOC = { lat: 19.0760, lon: 72.8777 };
+let currentData = {};
+
+async function init() {
+    try {
+        document.getElementById('loader-text').innerText = '🌤️ Fetching Weather Data...';
+        
+        // Primary APIs with fallback
+        const promises = [
+            fetchWeatherData(),
+            fetchSunData(),
+            fetchAQI()
+        ];
+
+        const [weather, sun, aqi] = await Promise.allSettled(promises);
+        
+        if (sun.status === 'fulfilled') {
+            currentData.sun = sun.value;
+            updateSunTimes(sun.value);
+        }
+        
+        if (weather.status === 'fulfilled') {
+            currentData.weather = weather.value;
+            updateWeather(weather.value);
+        }
+        
+        if (aqi.status === 'fulfilled') {
+            currentData.aqi = aqi.value;
+            updateAQI(aqi.value);
+        }
+
+        if (Object.keys(currentData).length > 0) {
+            renderCharts();
+            startCountdown();
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('main-content').style.display = 'block';
+        } else {
+            throw new Error('All APIs failed');
+        }
+
+    } catch (e) {
+        console.error('API Error:', e);
+        document.getElementById('loader-text').innerText = "🌐 API Access Limited";
+        document.getElementById('force-btn').style.display = 'block';
+    }
+}
+
+async function fetchSunData() {
+    // Try Open-Meteo first (most reliable for GitHub Pages)
+    try {
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${LOC.lat}&longitude=${LOC.lon}&daily=sunrise,sunset&timezone=Asia%2FKolkata&forecast_days=30`);
+        if (!res.ok) throw new Error('Open-Meteo failed');
+        const data = await res.json();
+        return data.daily;
+    } catch (e) {
+        // Fallback to sunrise-sunset.org
+        const res = await fetch(`https://api.sunrise-sunset.org/json?lat=${LOC.lat}&lng=${LOC.lon}&formatted=0&date=today`);
+        const today = await res.json();
+        return generateMockTrend(today.results);
+    }
+}
+
+async function fetchWeatherData() {
+    try {
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${LOC.lat}&longitude=${LOC.lon}&current=temperature_2m&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FKolkata`);
+        if (!res.ok) throw new Error('Weather failed');
+        return await res.json();
+    } catch (e) {
+        return { current: { temperature_2m: 28 }, daily: { temperature_2m_max: [32], temperature_2m_min: [24] } };
+    }
+}
+
+async function fetchAQI() {
+    try {
+        const res = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${LOC.lat}&longitude=${LOC.lon}&current=pm2_5,temperature_2m&timezone=Asia%2FKolkata`);
+        if (!res.ok) throw new Error('AQI failed');
+        return await res.json();
+    } catch (e) {
+        return { current: { pm2_5: 24 } };
+    }
+}
+
+function generateMockTrend(todayData) {
+    const baseSunrise = new Date(todayData.sunrise).getHours() * 60 + new Date(todayData.sunrise).getMinutes();
+    const baseSunset = new Date(todayData.sunset).getHours() * 60 + new Date(todayData.sunset).getMinutes();
+    
+    const trend = {
+        sunrise: [],
+        sunset: [],
+        time: []
+    };
+    
+    for (let i = 0; i < 30; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() + i);
+        const sunrise = new Date(date);
+        sunrise.setMinutes(baseSunrise);
+        const sunset = new Date(date);
+        sunset.setMinutes(baseSunset + (i * 0.5)); // slight variation
+        
+        trend.sunrise.push(sunrise.toISOString());
+        trend.sunset.push(sunset.toISOString());
+        trend.time.push(date.toISOString().split('T')[0]);
+    }
+    return trend;
+}
+
+function updateSunTimes(sunData) {
+    const timesList = document.getElementById('times-list');
+    timesList.innerHTML = '';
+    
+    const days = ['Today', 'Tomorrow', 'Saturday', 'Sunday'];
+    const times = [0, 1, 5, 6]; // Today, tomorrow, this weekend
+    
+    times.forEach((dayOffset, i) => {
+        if (sunData.sunrise[dayOffset]) {
+            const sunrise = new Date(sunData.sunrise[dayOffset]);
+            const sunset = new Date(sunData.sunset[dayOffset]);
+            const dayName = days[i];
+            
+            const dayDiv = document.createElement('div');
+            dayDiv.className = 'time-item';
+            dayDiv.innerHTML = `
+                <div class="day">${dayName}</div>
+                <div class="time">${sunrise.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} → ${sunset.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+            `;
+            timesList.appendChild(dayDiv);
+        }
+    });
+    
+    // Update daylight hours
+    if (sunData.sunrise[0] && sunData.sunset[0]) {
+        const sr = new Date(sunData.sunrise[0]);
+        const ss = new Date(sunData.sunset[0]);
+        const diff = (ss - sr) / (1000 * 60 * 60);
+        document.getElementById('daylight').textContent = diff.toFixed(1) + 'h';
+    }
+}
+
+function updateWeather(weather) {
+    const temp = Math.round(weather.current.temperature_2m);
+    document.getElementById('temp').textContent = temp + '°C';
+    document.getElementById('temp-label').textContent = temp > 30 ? 'HOT ☀️' : temp > 25 ? 'WARM 🌤️' : 'PLEASANT 🌥️';
+}
+
+function updateAQI(aqi) {
+    const pm25 = Math.round(aqi.current.pm2_5 * 10) / 10;
+    document.getElementById('aqi').textContent = pm25;
+    
+    const msg = document.getElementById('aqi-msg');
+    if (pm25 <= 12) {
+        msg.textContent = 'SAFE';
+        msg.className = 'aqi-status status-safe';
+    } else if (pm25 <= 35) {
+        msg.textContent = 'MODERATE';
+        msg.className = 'aqi-status status-moderate';
+    } else {
+        msg.textContent = 'UNHEALTHY';
+        msg.className = 'aqi-status status-unhealthy';
+    }
+}
+
+function renderCharts() {
+    const sunData = currentData.sun;
+    if (!sunData || !sunData.sunrise) return;
+
+    const labels = sunData.time?.slice(0, 30).map(d => new Date(d).toLocaleDateString([], {month:'short', day:'numeric'})) || 
+                   sunData.sunrise.slice(0, 30).map((_, i) => `Day ${i + 1}`);
+    
+    const toMinutes = iso => {
+        const d = new Date(iso);
+        return d.getHours() * 60 + d.getMinutes();
+    };
+
+    // Sunrise Chart
+    new Chart(document.getElementById('sunriseChart'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Sunrise',
+                data: sunData.sunrise.slice(0, 30).map(toMinutes),
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                fill: true,
+                tension: 0.4,
+                pointRadius: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    ticks: {
+                        callback: v => Math.floor(v/60).toString().padStart(2,'0') + ':00'
+                    }
+                }
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // Sunset Chart
+    new Chart(document.getElementById('sunsetChart'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Sunset',
+                data: sunData.sunset.slice(0, 30).map(toMinutes),
+                borderColor: '#f59e0b',
+                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                fill: true,
+                tension: 0.4,
+                pointRadius: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    ticks: {
+                        callback: v => Math.floor(v/60).toString().padStart(2,'0') + ':00'
+                    }
+                }
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+}
+
+function startCountdown() {
+    if (!currentData.sun?.sunrise?.[0] || !currentData.sun?.sunset?.[0]) return;
+    
+    const sr = new Date(currentData.sun.sunrise[0]);
+    const ss = new Date(currentData.sun.sunset[0]);
+    
+    setInterval(() => {
+        const now = new Date();
+        let target = now < sr ? sr : now < ss ? ss : new Date(sr.getTime() + 24*60*60*1000);
+        let diff = target - now;
+        
+        if (diff < 0) diff = 0;
+        
+        const h = Math.floor(diff / 3600000).toString().padStart(2, "0");
+        const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, "0");
+        const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, "0");
+        
+        document.getElementById('cd').textContent = `${h}:${m}:${s}`;
+        document.getElementById('cd-label').textContent = 
+            now < sr ? 'To Sunrise 🌅' : 
+            now < ss ? 'To Sunset 🌇' : 'To Tomorrow 🌅';
+    }, 1000);
+}
+
+function useOfflineData() {
+    // Mumbai February 2026 estimates
+    const mockSun = generateMockTrend({
+        sunrise: "2026-02-22T06:58:00",
+        sunset: "2026-02-22T18:32:00"
+    });
+    
+    currentData.sun = mockSun;
+    currentData.weather = { current: { temperature_2m: 28.5 } };
+    currentData.aqi = { current: { pm2_5: 22 } };
+    
+    updateSunTimes(mockSun);
+    updateWeather(currentData.weather);
+    updateAQI(currentData.aqi);
+    renderCharts();
+    startCountdown();
+    
+    document.getElementById('loader').style.display = 'none';
+    document.getElementById('main-content').style.display = 'block';
+}
+
+init();
+</script>
+</body>
+</html>
